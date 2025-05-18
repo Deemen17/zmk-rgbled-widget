@@ -314,7 +314,7 @@ void indicate_caps(void) {
     k_msgq_put(&led_msgq, &blink, K_NO_WAIT);
 }
 
-static int led_caps_lock_listener(const zmk_event_t *eh) {
+static int led_caps_lock_listener_cb(const zmk_event_t *eh) {
     if (!initialized) {
         return 0;
     }
@@ -327,8 +327,8 @@ static int led_caps_lock_listener(const zmk_event_t *eh) {
     return 0;
 }
 
-ZMK_LISTENER(led_caps_lock_listener_l, led_caps_lock_listener);
-ZMK_SUBSCRIPTION(led_caps_lock_listener_l, zmk_hid_indicators_changed);
+ZMK_LISTENER(led_caps_lock_listener, led_caps_lock_listener_cb);
+ZMK_SUBSCRIPTION(led_caps_lock_listener, zmk_hid_indicators_changed);
 #endif // IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
 
 static void set_rgb_leds(uint8_t color, uint16_t duration_ms) {
