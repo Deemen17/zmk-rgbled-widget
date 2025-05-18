@@ -286,6 +286,13 @@ config RGBLED_WIDGET_LAYER_31_COLOR
     range 0 7
     default $(COLOR_BLACK)
 
+config RGBLED_WIDGET_CAPS
+    bool "Enable Caps Lock LED indication"
+    default n
+    help
+      If enabled, the LED will show WHITE when Caps Lock is on
+      and turn off when Caps Lock is off.
+
 endif # RGBLED_WIDGET
 
 DT_COMPAT_ZMK_BEHAVIOR_RGBLED_WIDGET := zmk,behavior-rgbled-widget

@@ -23,6 +23,7 @@
 #include <zephyr/logging/log.h>
 
 #include <zmk_rgbled_widget/widget.h>
+#include <zmk/hid.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -39,47 +40,14 @@ BUILD_ASSERT(!(SHOW_LAYER_CHANGE && SHOW_LAYER_COLORS),
              "CONFIG_RGBLED_WIDGET_SHOW_LAYER_CHANGE and CONFIG_RGBLED_WIDGET_SHOW_LAYER_COLORS "
              "are mutually exclusive");
 
-// GPIO-based LED device and indices of red/green/blue LEDs inside its DT node
-static const struct device *led_dev = DEVICE_DT_GET(LED_GPIO_NODE_ID);
-static const uint8_t rgb_idx[] = {DT_NODE_CHILD_IDX(DT_ALIAS(led_red)),
-                                  DT_NODE_CHILD_IDX(DT_ALIAS(led_green)),
-                                  DT_NODE_CHILD_IDX(DT_ALIAS(led_blue))};
+// Global variables
+static bool initialized = false;
+static uint8_t led_current_color = 0;
+static uint8_t led_layer_color = 0;
 
-// map from color values to names, for logging
-static const char *color_names[] = {"black", "red",     "green", "yellow",
-                                    "blue",  "magenta", "cyan",  "white"};
-
-#if SHOW_LAYER_COLORS
-static const uint8_t layer_color_idx[] = {
-    CONFIG_RGBLED_WIDGET_LAYER_0_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_1_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_2_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_3_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_4_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_5_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_6_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_7_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_8_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_9_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_10_COLOR, CONFIG_RGBLED_WIDGET_LAYER_11_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_12_COLOR, CONFIG_RGBLED_WIDGET_LAYER_13_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_14_COLOR, CONFIG_RGBLED_WIDGET_LAYER_15_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_16_COLOR, CONFIG_RGBLED_WIDGET_LAYER_17_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_18_COLOR, CONFIG_RGBLED_WIDGET_LAYER_19_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_20_COLOR, CONFIG_RGBLED_WIDGET_LAYER_21_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_22_COLOR, CONFIG_RGBLED_WIDGET_LAYER_23_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_24_COLOR, CONFIG_RGBLED_WIDGET_LAYER_25_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_26_COLOR, CONFIG_RGBLED_WIDGET_LAYER_27_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_28_COLOR, CONFIG_RGBLED_WIDGET_LAYER_29_COLOR,
-    CONFIG_RGBLED_WIDGET_LAYER_30_COLOR, CONFIG_RGBLED_WIDGET_LAYER_31_COLOR,
-};
-#endif
-
-// log shorthands
-#define LOG_CONN_CENTRAL(index, status, color_label)                                               \
-    LOG_INF("Profile %d %s, blinking %s", index, status,                                           \
-            color_names[CONFIG_RGBLED_WIDGET_CONN_COLOR_##color_label])
-#define LOG_CONN_PERIPHERAL(status, color_label)                                                   \
-    LOG_INF("Peripheral %s, blinking %s", status,                                                  \
-            color_names[CONFIG_RGBLED_WIDGET_CONN_COLOR_##color_label])
-#define LOG_BATTERY(battery_level, color_label)                                                    \
-    LOG_INF("Battery level %d, blinking %s", battery_level,                                        \
-            color_names[CONFIG_RGBLED_WIDGET_BATTERY_COLOR_##color_label])
+#if IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
+static bool caps_lock_active = false;
+#endif // IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
 
 // a blink work item as specified by the color and duration
 struct blink_item {
@@ -87,9 +55,6 @@ struct blink_item {
     uint16_t duration_ms;
     uint16_t sleep_ms;
 };
-
-// flag to indicate whether the initial boot up sequence is complete
-static bool initialized = false;
 
 // define message queue of blink work items, that will be processed by a
 // separate thread
@@ -231,7 +196,6 @@ ZMK_LISTENER(led_battery_listener, led_battery_listener_cb);
 ZMK_SUBSCRIPTION(led_battery_listener, zmk_battery_state_changed);
 #endif // IS_ENABLED(CONFIG_ZMK_BATTERY_REPORTING)
 
-uint8_t led_layer_color = 0;
 #if SHOW_LAYER_COLORS
 void update_layer_color(void) {
     uint8_t index = zmk_keymap_highest_layer_active();
@@ -296,7 +260,27 @@ ZMK_LISTENER(led_layer_listener, led_layer_listener_cb);
 ZMK_SUBSCRIPTION(led_layer_listener, zmk_layer_state_changed);
 #endif // SHOW_LAYER_CHANGE
 
-uint8_t led_current_color = 0;
+#if IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
+void indicate_caps(void) {
+    struct blink_item blink = {
+        .color = caps_lock_active ? 7 : 0,
+        .duration_ms = 0,
+        .sleep_ms = 0  
+    };
+    k_msgq_put(&led_msgq, &blink, K_NO_WAIT);
+}
+
+static int led_caps_lock_listener(const zmk_event_t *eh) {
+    if (!initialized) {
+        return 0;
+    }
+
+    caps_lock_active = as_zmk_hid_indicators_changed(eh)->indicators.caps_lock;
+    LOG_INF("CAPS Lock %s", caps_lock_active ? "ON" : "OFF");
+    indicate_caps();
+    return 0;
+}
+#endif // IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
 
 static void set_rgb_leds(uint8_t color, uint16_t duration_ms) {
     for (uint8_t pos = 0; pos < 3; pos++) {
@@ -382,6 +366,13 @@ extern void led_init_thread(void *d0, void *d1, void *d2) {
     LOG_INF("Setting initial layer color");
     update_layer_color();
 #endif // SHOW_LAYER_COLORS
+
+#if IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
+    LOG_INF("Checking initial CAPS Lock status");
+    zmk_hid_indicators_t flags = zmk_hid_indicators_get_current_profile();
+    caps_lock_active = (flags & BIT(HID_USAGE_LED_CAPS_LOCK - 1)) != 0;
+    indicate_caps();
+#endif // IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
 
     initialized = true;
     LOG_INF("Finished initializing LED widget");

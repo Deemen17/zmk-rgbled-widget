@@ -1,16 +1,9 @@
-# LED indicators using an RGB LED
+# LED indicators using an RGB LED - edited by Deemen17
 
 This is a [ZMK module](https://zmk.dev/docs/features/modules) containing a simple widget that utilizes a (typically built-in) RGB LED controlled by three separate GPIOs.
 It is used to indicate battery level and BLE connection status in a minimalist way.
 
 ## Features
-
-<details>
-  <summary>Short video demo</summary>
-  See below video for a short demo, running through power on, profile switching and power offs.
-
-  https://github.com/caksoylar/zmk-rgbled-widget/assets/7876996/cfd89dd1-ff24-4a33-8563-2fdad2a828d4
-</details>
 
 ### Battery status
 
@@ -20,7 +13,7 @@ It is used to indicate battery level and BLE connection status in a minimalist w
 
 ### Connection status
 
-- Blink 🔵 for connected, 🟡 for open (advertising), 🔴 for disconnected profiles on boot after the battery blink, and following every BT profile switch (only on central side for splits)
+- Blink 🔵 for connected, 🟡 for open (advertising), 🔴 for disconnected profiles on boot AFTER the battery blink, and following every BT profile switch (only on central side for splits)
 - Blink 🔵 for connected, 🔴 for disconnected on peripheral side of splits
 
 ### Layer state
@@ -32,6 +25,15 @@ You can pick one of the following methods (off by default) to indicate the highe
 - Enable `CONFIG_RGBLED_WIDGET_SHOW_LAYER_COLORS` to assign each layer its own color, which will remain on while that layer is the highest active layer
 
 These layer indicators will only be active on the central part of a split keyboard, since peripheral parts aren't aware of the layer information.
+
+### Caps Lock status
+
+- Toggle ⚪/⚫ indicate the Caps Lock status, based on the HID reports received from the host.
+- Enable with `CONFIG_RGBLED_WIDGET_CAPS=y` 
+- When Caps Lock is active, the RGB LED will turn white (⚪); when inactive, it will turn black (⚫) or be turned off.
+- The LED state is updated whenever the host sends a new HID report, ensuring that the LED stays in sync with the actual lock state on the system.
+- Note: This feature only works on the central side of split keyboards, as the peripheral side does not receive HID reports.
+
 
 > [!TIP]
 > Also see [below](#showing-status-on-demand) for keymap behaviors you can use to show the battery and connection status on demand.

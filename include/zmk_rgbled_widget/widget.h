@@ -17,3 +17,7 @@ void indicate_connectivity(void);
 #if !IS_ENABLED(CONFIG_ZMK_SPLIT) || IS_ENABLED(CONFIG_ZMK_SPLIT_ROLE_CENTRAL)
 void indicate_layer(void);
 #endif
+
+#if IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
+void indicate_caps(void);
+#endif
