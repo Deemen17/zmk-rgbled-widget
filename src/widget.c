@@ -24,6 +24,8 @@
 
 #include <zmk_rgbled_widget/widget.h>
 #include <zmk/hid.h>
+#include <zmk/hid_indicators.h>
+#include <zmk/events/hid_indicators_changed.h>
 
 LOG_MODULE_DECLARE(zmk, CONFIG_ZMK_LOG_LEVEL);
 
@@ -55,6 +57,31 @@ static const uint8_t rgb_idx[] = {DT_NODE_CHILD_IDX(DT_ALIAS(led_red)),
                                   DT_NODE_CHILD_IDX(DT_ALIAS(led_green)),
                                   DT_NODE_CHILD_IDX(DT_ALIAS(led_blue))};
 
+// map from color values to names, for logging
+static const char *color_names[] = {"black", "red",     "green", "yellow",
+                                    "blue",  "magenta", "cyan",  "white"};
+
+#if SHOW_LAYER_COLORS
+static const uint8_t layer_color_idx[] = {
+    CONFIG_RGBLED_WIDGET_LAYER_0_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_1_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_2_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_3_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_4_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_5_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_6_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_7_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_8_COLOR,  CONFIG_RGBLED_WIDGET_LAYER_9_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_10_COLOR, CONFIG_RGBLED_WIDGET_LAYER_11_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_12_COLOR, CONFIG_RGBLED_WIDGET_LAYER_13_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_14_COLOR, CONFIG_RGBLED_WIDGET_LAYER_15_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_16_COLOR, CONFIG_RGBLED_WIDGET_LAYER_17_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_18_COLOR, CONFIG_RGBLED_WIDGET_LAYER_19_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_20_COLOR, CONFIG_RGBLED_WIDGET_LAYER_21_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_22_COLOR, CONFIG_RGBLED_WIDGET_LAYER_23_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_24_COLOR, CONFIG_RGBLED_WIDGET_LAYER_25_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_26_COLOR, CONFIG_RGBLED_WIDGET_LAYER_27_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_28_COLOR, CONFIG_RGBLED_WIDGET_LAYER_29_COLOR,
+    CONFIG_RGBLED_WIDGET_LAYER_30_COLOR, CONFIG_RGBLED_WIDGET_LAYER_31_COLOR,
+};
+#endif
+                                  
 // log shorthands
 #define LOG_CONN_CENTRAL(index, status, color_label)                                               \
     LOG_INF("Profile %d %s, blinking %s", index, status,                                           \
@@ -398,14 +425,3 @@ extern void led_init_thread(void *d0, void *d1, void *d2) {
 // run init thread on boot for initial battery+output checks
 K_THREAD_DEFINE(led_init_tid, 1024, led_init_thread, NULL, NULL, NULL,
                 K_LOWEST_APPLICATION_THREAD_PRIO, 0, 200);
-
-// Thiếu khai báo array color names
-static const char *color_names[] = {"black", "red", "green", "yellow",
-                                    "blue",  "magenta", "cyan",  "white"};
-
-// Thiếu layer color array nếu SHOW_LAYER_COLORS được enable
-#if SHOW_LAYER_COLORS
-static const uint8_t layer_color_idx[] = {
-    // ...existing code...
-};
-#endif
