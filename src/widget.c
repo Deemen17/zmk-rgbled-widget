@@ -319,11 +319,16 @@ static int led_caps_lock_listener(const zmk_event_t *eh) {
         return 0;
     }
 
-    caps_lock_active = as_zmk_hid_indicators_changed(eh)->indicators.caps_lock;
-    LOG_INF("CAPS Lock %s", caps_lock_active ? "ON" : "OFF");
+    zmk_hid_indicators_t flags = zmk_hid_indicators_get_current_profile();
+    unsigned int capsBit = 1 << (HID_USAGE_LED_CAPS_LOCK - 1);
+    caps_lock_active = (flags & capsBit) != 0;
+    LOG_INF("Caps Lock %s", caps_lock_active ? "ON" : "OFF");
     indicate_caps();
     return 0;
 }
+
+ZMK_LISTENER(led_caps_lock_listener_l, led_caps_lock_listener);
+ZMK_SUBSCRIPTION(led_caps_lock_listener_l, zmk_hid_indicators_changed);
 #endif // IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
 
 static void set_rgb_leds(uint8_t color, uint16_t duration_ms) {
