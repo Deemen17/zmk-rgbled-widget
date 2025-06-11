@@ -18,7 +18,7 @@ config LED
 
 config RGBLED_WIDGET_INTERVAL_MS
     int "Minimum wait duration between two blinks in ms"
-    default 500
+    default 100
 
 # Battery level settings
 
@@ -42,7 +42,7 @@ endchoice
 
 config RGBLED_WIDGET_BATTERY_BLINK_MS
     int "Duration of battery level blink in ms"
-    default 2000
+    default 500
 
 config RGBLED_WIDGET_BATTERY_LEVEL_HIGH
     int "High battery level percentage"
@@ -88,7 +88,7 @@ config RGBLED_WIDGET_CONN_BLINK_MS
 
 config RGBLED_WIDGET_OUTPUT_BLINK_MS  # DEPRECATED, do not use
     int
-    default 1000
+    default 500
 
 config RGBLED_WIDGET_CONN_COLOR_CONNECTED
     int "Color for connected BLE connection status"
