@@ -13,6 +13,7 @@
 #include <zmk/events/split_peripheral_status_changed.h>
 #include <zmk/keymap.h>
 #include <zmk/split/bluetooth/peripheral.h>
+#include <drivers/ext_power.h>
 
 #if __has_include(<zmk/split/central.h>)
 #include <zmk/split/central.h>
@@ -41,6 +42,8 @@ BUILD_ASSERT(DT_NODE_EXISTS(DT_ALIAS(led_blue)),
 BUILD_ASSERT(!(SHOW_LAYER_CHANGE && SHOW_LAYER_COLORS),
              "CONFIG_RGBLED_WIDGET_SHOW_LAYER_CHANGE and CONFIG_RGBLED_WIDGET_SHOW_LAYER_COLORS "
              "are mutually exclusive");
+
+#define EXT_POWER_POLL_INTERVAL_MS 200
 
 // Global variables
 static bool initialized = false;
@@ -330,6 +333,29 @@ static int led_caps_lock_listener_cb(const zmk_event_t *eh) {
 ZMK_LISTENER(led_caps_lock_listener, led_caps_lock_listener_cb);
 ZMK_SUBSCRIPTION(led_caps_lock_listener, zmk_hid_indicators_changed);
 #endif // IS_ENABLED(CONFIG_RGBLED_WIDGET_CAPS)
+
+void indicate_ext_power(bool ext_power_on) {
+    struct blink_item blink = {.duration_ms = 0};
+    blink.color = ext_power_on ? 2 : 1;
+    k_msgq_put(&led_msgq, &blink, K_NO_WAIT);
+}
+
+void ext_power_led_poll_thread(void *p1, void *p2, void *p3) {
+    const struct device *dev = DEVICE_DT_GET_ANY(ext_power_generic);
+    static int last_status = -1;
+    while (1) {
+        if (dev && device_is_ready(dev)) {
+            int status = ext_power_get(dev);
+            if (status != last_status) {
+                indicate_ext_power(status);
+                last_status = status;
+            }
+        }
+        k_sleep(K_MSEC(EXT_POWER_POLL_INTERVAL_MS));
+    }
+}
+
+K_THREAD_DEFINE(ext_power_poll_tid, 512, ext_power_led_poll_thread, NULL, NULL, NULL, 7, 0, 0);
 
 static void set_rgb_leds(uint8_t color, uint16_t duration_ms) {
     for (uint8_t pos = 0; pos < 3; pos++) {

@@ -34,9 +34,11 @@ These layer indicators will only be active on the central part of a split keyboa
 - The LED state is updated whenever the host sends a new HID report, ensuring that the LED stays in sync with the actual lock state on the system.
 - Note: This feature only works on the central side of split keyboards, as the peripheral side does not receive HID reports.
 
-
 > [!TIP]
 > Also see [below](#showing-status-on-demand) for keymap behaviors you can use to show the battery and connection status on demand.
+
+### External Power status
+- Toggle 🟢/🔴 indicate the External Power status
 
 ## Installation
 
