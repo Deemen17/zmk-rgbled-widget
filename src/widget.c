@@ -3,6 +3,27 @@
 #include <zephyr/drivers/led.h>
 #include <zephyr/init.h>
 #include <zephyr/kernel.h>
+#include <zephyr/pm/device.h>
+
+volatile bool rgbled_suspend_flag = false;
+
+static int rgbled_pm_action(const struct device *dev, enum pm_device_action action)
+{
+    switch (action) {
+        case PM_DEVICE_ACTION_SUSPEND:
+            set_rgb_leds(0, 0);
+            rgbled_suspend_flag = true;
+            break;
+        case PM_DEVICE_ACTION_RESUME:
+            rgbled_suspend_flag = false;
+            break;
+        default:
+            break;
+    }
+    return 0;
+}
+
+PM_DEVICE_DEFINE(rgbled_widget, rgbled_pm_action);
 
 #include <zmk/battery.h>
 #include <zmk/ble.h>
@@ -344,6 +365,10 @@ void ext_power_led_poll_thread(void *p1, void *p2, void *p3) {
     const struct device *dev = DEVICE_DT_GET_ANY(ext_power_generic);
     static int last_status = -1;
     while (1) {
+        if (rgbled_suspend_flag) {
+            k_sleep(K_MSEC(100));
+            continue;
+        }
         if (dev && device_is_ready(dev)) {
             int status = ext_power_get(dev);
             if (status != last_status) {
@@ -385,6 +410,10 @@ extern void led_process_thread(void *d0, void *d1, void *d2) {
 #endif
 
     while (true) {
+        if (rgbled_suspend_flag) {
+            k_sleep(K_MSEC(100));
+            continue;
+        }
         // wait until a blink item is received and process it
         struct blink_item blink;
         k_msgq_get(&led_msgq, &blink, K_FOREVER);
@@ -456,3 +485,6 @@ extern void led_init_thread(void *d0, void *d1, void *d2) {
 // run init thread on boot for initial battery+output checks
 K_THREAD_DEFINE(led_init_tid, 1024, led_init_thread, NULL, NULL, NULL,
                 K_LOWEST_APPLICATION_THREAD_PRIO, 0, 200);
+
+// Register virtual device for Zephyr power management
+DEVICE_DEFINE(rgbled_widget, "RGBLED_WIDGET", NULL, NULL, NULL, NULL, POST_KERNEL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, NULL);
